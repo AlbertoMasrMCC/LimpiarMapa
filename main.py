@@ -2,60 +2,61 @@ import xml.etree.ElementTree as ET
 import csv
 
 if __name__ == '__main__':
-    # Parse the .osm file
-    tree = ET.parse("Sector Centro.osm")
+
+    # Convertir el archivo OSM a XML
+    tree = ET.parse("Culiacán Rosales.osm")
     root = tree.getroot()
 
-    # Dictionary to store the node IDs and names
-    node_data = {}
+    # Diccionario para almacenar las esquinas de cada calle
+    corners = {}
 
-    # Create the node_id variable and initialize it to None
-    node_ids = []
+    # Lista para almacenar las calles con las coordenadas de sus esquinas
+    street_corners = []
 
-    # Iterate through the elements in the root node
+    # Recorre todos los elementos del árbol XML
     for element in root:
-        # Check if the element is a node
-        if element.tag == "node":
-            # Iterate through the node's tag elements
-            for tag in element:
-                # Check if the tag is a "highway" tag
-                if tag.attrib["k"] == "highway":
-                    # Store the node ID, name and coordinates in the dictionary
-                    node_id = element.attrib["id"]
-                    node_data[node_id] = {
-                        "name": None,
-                        "lat": element.attrib["lat"],
-                        "lon": element.attrib["lon"]
-                    }
-                    # Store the node ID in the list
-                    node_ids.append(node_id)
-
-    # Iterate through the elements in the root node again
-    for element in root:
-        # Check if the element is a way
         if element.tag == "way":
-            # Iterate through the way's nd elements
-            for nd in element:
-                # Check if the nd has the node ID we are looking for
-                if "ref" in nd.attrib and nd.attrib["ref"] in node_ids:
-                    # Find the name of the street
-                    street_name = None
+            # Recorre todos los elementos "tag" del elemento "way"
+            for tag in element:
+                if tag.tag == "tag" and tag.attrib['k'] == "highway":
+                    # Obtiene el nombre de la calle (si está presente)
+                    name = None
                     for name_tag in element:
-                        if "k" in name_tag.attrib and name_tag.attrib["k"] == "name":
-                            street_name = name_tag.attrib["v"]
-                        # Store the street name in the dictionary
-                        node_data[nd.attrib["ref"]]["name"] = street_name
+                        if name_tag.tag == "tag" and name_tag.attrib['k'] == "name":
+                            name = name_tag.attrib["v"]
+                            break
+                    # Si la calle no está en el diccionario, la añade con una lista vacía
+                    if name not in corners:
+                        corners[name] = []
+                    # Recorre todos los elementos "nd" (nodos) del elemento "way"
+                    for nd in element:
+                        if nd.tag == "nd":
+                            # Añade el identificador del nodo a la lista de esquinas de la calle
+                            corners[name].append(nd.attrib["ref"])
 
-    # Print the node id, name and coordinates
-    for node_id, data in node_data.items():
-        print(f"{node_id}: {data['name']} ({data['lat']}, {data['lon']})")
-        # Open the file in write mode with utf-8 encoding
-        with open("node_data.csv", "w", newline="", encoding="utf-8") as csv_file:
-            # Create a CSV writer object
-            writer = csv.writer(csv_file, delimiter=",", quoting=csv.QUOTE_ALL)
-            # Write the header row
-            writer.writerow(["lat", "lon", "name"])
-            # Iterate through the node data
-            for node_id, data in node_data.items():
-                # Write a row for each node
-                writer.writerow([data["lat"], data["lon"], data["name"]])
+    # Iterar e imprimir cada nombre de la esquina y sus esquinas
+    for name, corner_ids in corners.items():
+        # Iterar sobre las esquinas de la calle
+        for corner_id in corner_ids:
+            # Recorrer todos los nodos del árbol XML
+            for element in root:
+                if element.tag == "node" and element.attrib["id"] == corner_id:
+                    for tag in element:
+                        if tag.tag == "tag" and tag.attrib['k'] == "highway":
+                            street_corners.append([element.attrib["lat"], element.attrib["lon"], "", "", name])
+
+    # Recorre la lista de registros
+    for i, record in enumerate(street_corners):
+        # Asigna las coordenadas al registro anterior (si existe)
+        if i > 0:
+            street_corners[i - 1][2] = record[0]
+            street_corners[i - 1][3] = record[1]
+
+    # Imprimir la lista en un archivo CSV
+    with open("calles_culiacan.csv", "w", newline="", encoding="utf-8") as csv_file:
+        # Creamos el objeto writer
+        writer = csv.writer(csv_file, delimiter=",", quoting=csv.QUOTE_ALL)
+        # Escribimos los encabezados
+        writer.writerow(["lat1", "lon1", "lat2", "lon2", "name"])
+        # Escribimos los registros
+        writer.writerows(street_corners)
