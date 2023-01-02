@@ -2,9 +2,11 @@ import xml.etree.ElementTree as ET
 import csv
 
 # Validamos si la esquina se encuentra en una calle distinta a la que se esta analizando
-def validateCorner(root, name, corner_id):
+def validateCorner(root, way_id, name, corner_id):
     for element in root:
         if element.tag == "way":
+            if element.attrib["id"] == way_id:
+                continue
             for tag in reversed(element):
                 if tag.tag == "tag" and tag.attrib['k'] == "name":
                     if tag.attrib["v"] == name:
@@ -49,7 +51,7 @@ if __name__ == '__main__':
                     for nd in element:
                         if nd.tag == "nd":
                             # Si el nodo no está en la lista de esquinas de la calle, lo añade
-                            if validateCorner(root, name, nd.attrib["ref"]):
+                            if validateCorner(root, element.attrib["id"], name, nd.attrib["ref"]):
                                 corners[name].append(nd.attrib["ref"])
 
     # Iterar e imprimir cada nombre de la esquina y sus esquinas
